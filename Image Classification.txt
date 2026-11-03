@@ -1,0 +1,80 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.layers import Conv2D,Dense,Flatten,MaxPooling2D
+(x_train,y_train),(x_test,y_test)=mnist.load_data()
+print("training Data",x_train.shape)
+print("Testng Data",x_test.shape)
+x_train=x_train.astype('float32')/255.0
+x_test=x_test.astype('float')/255.0
+x_train=x_train/255.0
+x_test=x_test.reshape(x_test.shape[0],28,28,1)
+x_train=x_train.reshape(x_train.shape[0],28,28,1)
+print("Reshaped Training Data",x_train.shape)
+print("reshaped Testing Data",x_test.shape)
+def plot_digit(image,digit,i):
+    plt.subplot(4,5,i+1)
+    plt.title(f"Digit:{digit}")
+    plt.imshow(image,cmap='gray')
+    plt.xticks([])
+    plt.yticks([])
+    plt.tight_layout()
+    plt.show()
+    plt.figure(figsize=(12,5))
+for i in range(20):
+  plot_digit(x_train[i].squeeze(),y_train[i],i)
+  plt.tight_layout()
+  plt.show()
+model=Sequential([
+    Conv2D(
+        32,
+        (3,3),
+        activation='relu',
+        input_shape=(28,28,1)
+    ),
+    MaxPooling2D((2,2)),
+    Flatten(),
+    Dense(100,activation='relu'),
+    Dense(10,activation='softmax')
+])
+optimizer=SGD(learning_rate=0.01,momentum=0.9)
+model.compile(optimizer=optimizer, loss="sparse_categorical_crossentropy",
+metrics=["accuracy"])
+model.summary()
+history=model.fit(
+    
+                 x_train,
+                 y_train,
+                 batch_size=32,
+                 epochs=10,
+                 validation_split=0.2,
+                 verbose=1
+)
+score=model.evaluate(x_test,y_test,verbose=0)
+print("Accuracy",score[1])
+plt.figure(figsize=(10,5))
+plt.subplot(1,2,1)
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title("Model Accuracy")
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend(
+    ["training Accuracy","Validation Accuracy"],
+    loc="upper right"
+)
+plt.subplot(1,2,2)
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title("Model Loss")
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend(
+        ["training loss","Validation loss"],
+    loc="lower right"
+)
+plt.tight_layout()
+plt.show()

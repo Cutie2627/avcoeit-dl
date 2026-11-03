@@ -1,0 +1,71 @@
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from tensorflow.keras.preprocessing.text import Tokenizer
+
+text = """
+deep learning is a part of machine learning
+machine learning uses data to learn patterns
+deep learning uses neural networks for learning
+neural networks are useful for many applications
+natural language processing works with data
+word embeddings represent words as numerical vectors
+cbow predicts a target word from context words
+word2vec is used for learning word representations
+deep learning is useful in natural language processing
+machine learning and deep learning are powerful techniques
+"""
+
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts([text])
+
+word_index = tokenizer.word_index
+total_vocab = len(word_index) + 1
+sequences = tokenizer.texts_to_sequences([text])[0]
+
+print(f"Total Vocabulary: {total_vocab}")
+
+window_size = 2
+context_words, target_words = [], []
+
+for i in range(window_size, len(sequences) - window_size):
+  context = (
+      sequences[i - window_size : i] + sequences[i + 1 : i + window_size + 1]
+  )
+  target = sequences[i]
+
+  context_words.append(context)
+  target_words.append(target)
+
+context_words = np.array(context_words)
+target_words = tf.keras.utils.to_categorical(target_words, num_classes=total_vocab)
+
+print(f"Context Shape: {context_words.shape}")
+print(f"Target Shape: {target_words.shape}")
+
+embedding_dim = 50
+
+model = models.Sequential([
+    layers.Embedding(
+        input_dim=total_vocab,
+        output_dim=embedding_dim,
+        input_length=window_size * 2,
+    ),
+    layers.GlobalAveragePooling1D(),
+    layers.Dense(total_vocab, activation="softmax"),
+])
+
+model.compile(
+    loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
+)
+
+model.summary()
+
+print("\nTraining CBOW Model...")
+history = model.fit(
+    context_words, target_words, epochs=100, batch_size=16, verbose=1
+)
+
+loss, accuracy = model.evaluate(context_words, target_words, verbose=0)
+print(f"\nFinal Loss: {loss}")
+print(f"Final Accuracy: {accuracy * 100}%")

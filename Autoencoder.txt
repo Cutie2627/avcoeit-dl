@@ -1,0 +1,92 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input,Dense,Flatten,MaxPooling2D
+from IPython.utils.py3compat import decode
+(x_train,y_train),(x_test,y_test)=mnist.load_data()
+print("training Data",x_train.shape)
+print("Testng Data",x_test.shape)
+x_train=x_train.astype('float32')/255.0
+x_test=x_test.astype('float')/255.0
+x_train=x_train/255.0
+x_test=x_test.reshape(-1,784)
+x_train=x_train.reshape(-1,784)
+print("Reshaped Training Data",x_train.shape)
+print("reshaped Testing Data",x_test.shape)
+normal_train=x_train[y_train==0]
+print("Normal_Train Data",normal_train)
+test_mask=(y_test==0)|(y_test==1)
+
+x_test_anomaly=x_test[test_mask]
+y_test_anomaly=y_test[test_mask]
+input_layer=Input(shape=(784,))
+encoded=Dense(128,activation='relu')(input_layer)
+encoded=Dense(64,activation='relu')(encoded)
+decoded=Dense(128,activation='relu')(encoded)
+decoded=Dense(784,activation='sigmoid')(decoded)
+autoencoder=Model(input_layer,decoded)
+autoencoder.compile(
+optimizer='adam',
+loss='mse',
+metrics=['mae']
+)
+
+history=autoencoder.fit(
+    normal_train,
+    normal_train,
+    epochs=10,
+    batch_size=256,
+    validation_split=0.2,
+    verbose=1,
+    shuffle=True
+)
+reconstructed=autoencoder.predict(x_test_anomaly)
+reconstruction_error=np.mean(np.square(x_test_anomaly-reconstructed),axis=1)
+normal_test=x_test[y_test==0]
+normal_constructed=autoencoder.predict(normal_test)
+normal_reconstruction_error=np.mean(np.square(normal_test-normal_constructed),axis=1)
+threshold=np.percentile(normal_reconstruction_error,95)
+print("Threshold",threshold)
+predictions=reconstruction_error>threshold
+print("\First 20 Predictions")
+for i in range(20):
+ if predictions[i]:
+  print(i,"->anomaly")
+ else:
+    print(i,"->normal")
+    index=0
+    plt.figure(figsize=(8,4))
+    plt.subplot(1,2,1)
+    plt.imshow(x_test_anomaly[index].reshape(28,28),cmap='gray')
+    plt.title("Original")
+    plt.axis("Off")
+    plt.subplot(1,2,2)
+    plt.imshow(reconstructed[index].reshape(28,28),cmap='gray')
+    plt.title("Reconstructed")
+    plt.axis("Off")
+    plt.show()
+plt.figure(figsize=(8,5))
+plt.hist(
+    reconstruction_error[y_test_anomaly==0],
+    bins=50,
+    alpha=0.7,
+    label="Normal(0)"
+)
+plt.hist(
+    reconstruction_error[y_test_anomaly==1],
+    bins=50,
+    alpha=0.7,
+    label="Anomaly(1)"
+)
+plt.axvline(
+  threshold,
+  linestyle="--", 
+  label="threshold" 
+)
+plt.xlabel("Reconstruction Error")
+plt.ylabel("No. of Samples")
+plt.title("Autoencoder Anomaly Detection")
+plt.legend()
+plt.show()
